@@ -3,4 +3,5 @@
 ## In the BudCure Box, you can estimate the moisture content by the weight loss due to evaporation. The weight is tracked from harvest and a target weight is calculated. 
 > The BudCure Box provides a stable enviornment for the buds to slowly dry. 
 ## The Cannaster takes mostly dry nugs and gets them to the perfect moisture content for canning. The intense vacuum brings moisture out from inside the nugs, drying them quickly and evenly to a precise moisture content. 
-> The Cannaster dials in the moisture content of the buds in preperation for canning. 
+> The Cannaster dials in the moisture content of the buds in preperation for canning.
+The machines are built out of laser cut or 3D printed parts, requiring only nuts and bolts to assemble. The electronics are centered around the arduino microcontrollers, which plug into a custom PCB. 
