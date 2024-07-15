@@ -14,6 +14,9 @@
 
 ## The Cannaster takes mostly dry nugs and gets them to the perfect moisture content for canning. The intense vacuum brings moisture out from inside the nugs, drying them quickly and evenly to a precise moisture content. 
 
+<div align="center">
+<img src="https://live.staticflickr.com/65535/53858876694_0441f6b17d.jpg" alt="inside the Cannaster">
+</div>
 > The Cannaster dials in the moisture content of the buds in preparation for canning.
 
 ## The machines are built out of laser cut or 3D printed parts, requiring only nuts and bolts to assemble. The electronics are centered around the Arduino microcontrollers, which plug into a custom PCB.
