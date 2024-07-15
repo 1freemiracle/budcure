@@ -1,6 +1,6 @@
 # The BudCure is composed of two machines, the BudCure Box and the Cannaster. 
 <div align="center";>
-<img src="https://live.staticflickr.com/65535/53855147137_7863ec670d_c.jpg">
+<img src="https://live.staticflickr.com/65535/53855147137_7863ec670d_c.jpg"></div>
 ## In the BudCure Box, you can estimate the moisture content by the weight loss due to evaporation. The weight is tracked from harvest and a target weight is calculated.
 <div align="center">
 <img src="https://live.staticflickr.com/65535/53857547042_ca74505feb.jpg" alt="inside budcure box"></div>
