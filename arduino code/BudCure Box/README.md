@@ -1,1 +1,2 @@
-
+# The BudCure Box program files (Arduino IDE)
+## The BudCure uses two mosfets to switch the thermoelectric device `TEC` and the `exauhst fan`. It reads from two sensors, one is a temp sensor (`one wire` dallas temp sensor) plugged into the `TEC`, and a `DHT22` temp/humidity sensor. I'm able to control the temperature of the `TEC` to condense the water vapor out, drying the plant material. There is also a fan to help conserve energy ( the `TEC` runs about 2.5 amps) while the buds are waiting to become dry enough to close the `exaust` fan lid and use the `TEC`, for a controlled drying. 
