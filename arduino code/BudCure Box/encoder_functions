@@ -1,0 +1,31 @@
+/////////////////////////////////////////////////////////////////
+
+void rotate(ESPRotary& r) {
+  position = r.getPosition();
+  if (position != lastPosition) {
+    moved = true;
+    lastPosition = position;
+  }
+  if (position == 10) {
+      r.resetPosition(1);
+      position = 1;
+    } else if (position == 0) {
+      r.resetPosition(9);
+      position = 9;
+    }
+}
+
+/////////////////////////////////////////////////////////////////
+
+// on left or right rotation
+void showDirection(ESPRotary& r) {
+  //Serial.println(r.directionToString(r.getDirection()));
+}
+
+/////////////////////////////////////////////////////////////////
+
+void handleLoop() {
+  r.loop();
+}
+
+/////////////////////////////////////////////////////////////////
