@@ -2,7 +2,7 @@ void handleEncoder(int currentPage) {
   // Display the current page
   switch (currentPage) {
     case 1:
-      displaySensorReadings(temperature, humidity, pressure_hPa);
+      displaySensorReadings(tempReading, humidityReading, pressureReading);
       break;
     case 2:
       myOLED.clrScr();
@@ -18,11 +18,10 @@ void handleEncoder(int currentPage) {
   }
 }
 
-void handleButton() {
-
+void handleButton(int currentPage) {
   switch (currentPage) {
     case 1:
-      displaySensorReadings(temperature, humidity, pressure_hPa);
+      displaySensorReadings(tempReading, humidityReading, pressureReading);
       programGo = !programGo;
       prgOffTime = millis();
       pmpOffTime = millis();
@@ -39,6 +38,31 @@ void handleButton() {
       break;
   }
 }
+
+void dataReload() {
+  //float   alti = bme.calAltitude(SEA_LEVEL_PRESSURE, press);
+  pressureReading = (bmp.getPressure()/100)/68.9476;
+  if (aht20.startMeasurementReady(/* crcEn = */true)) {
+    tempReading = aht20.getTemperature_F();
+    humidityReading = aht20.getHumidity_RH();
+  }
+  Serial.print("Temperature = ");
+  Serial.print(tempReading);
+  Serial.println(" °C");
+
+  Serial.print("Pressure = ");
+
+  Serial.print(pressureReading);
+  Serial.println(" hPa");
+
+  Serial.print("Humidity = ");
+  Serial.print(humidityReading);
+  Serial.println(" %");
+
+  Serial.println();
+
+}
+
 
 void operateLid() {
   delay(500);
@@ -66,80 +90,24 @@ void operateLid() {
   handleEncoder(2);
 }
 
-void displaySensorReadings(float temperature,float humidity,float pressure_hPa) {
-  // 
-  myOLED.clrScr();
-  myOLED.print("Temp", LEFT, 0);
-  myOLED.print("RH", CENTER, 0);
-  myOLED.print("Pressure", RIGHT, 0);
-  myOLED.printNumF(temperature, 2, LEFT, 16);
-  myOLED.printNumF(humidity, 2, CENTER, 16);
-  myOLED.printNumF(pressure_hPa, 2, RIGHT, 16); // Assuming 2 decimal places for pressure
-  if (!programGo) {
-    myOLED.print(("Press to start"), LEFT, 50);
-  } else {myOLED.print(("       "), LEFT, 50);}
-  
-  if (programGo) {
-    if (enablePrg) {
-      myOLED.print("enabled", 10, 35);
-    } else {myOLED.print("       ", 10, 35);}
-    myOLED.printNumI(minutes, 77, 35);
-    myOLED.print(":", 90, 35);
-    myOLED.printNumI(seconds, 98, 35);
-  }
-  myOLED.update();
+
+
+void drawBoxWithX() {
+  // Draw the box
+  myOLED.drawLine(translateX(vectors[0][0]), translateY(vectors[0][1]), translateX(vectors[1][0]), translateY(vectors[1][1]));
+  myOLED.drawLine(translateX(vectors[1][0]), translateY(vectors[1][1]), translateX(vectors[2][0]), translateY(vectors[2][1]));
+  myOLED.drawLine(translateX(vectors[2][0]), translateY(vectors[2][1]), translateX(vectors[3][0]), translateY(vectors[3][1]));
+  myOLED.drawLine(translateX(vectors[3][0]), translateY(vectors[3][1]), translateX(vectors[0][0]), translateY(vectors[0][1]));
+
+  // Draw the X
+  myOLED.drawLine(translateX(vectors[4][0]), translateY(vectors[4][1]), translateX(vectors[5][0]), translateY(vectors[5][1]));
+  myOLED.drawLine(translateX(vectors[6][0]), translateY(vectors[6][1]), translateX(vectors[7][0]), translateY(vectors[7][1]));
 }
 
-void dataReload() {
- temperature = bme.readTemperature();
- humidity = bme.readHumidity();
- pressure_hPa = (bme.readPressure()/100)/68.9476;
-Serial.print("Temperature = ");
-    Serial.print(temperature);
-    Serial.println(" °C");
-
-    Serial.print("Pressure = ");
-
-    Serial.print(pressure_hPa);
-    Serial.println(" hPa");
-
-    Serial.print("Humidity = ");
-    Serial.print(humidity);
-    Serial.println(" %");
-
-    Serial.println();
+int translateX(double x) {
+  return (int)(x + xOffset); // Translate to xOffset
 }
 
-void startScreen() {
-
-  myOLED.clrScr();
-  myOLED.drawBitmap(0, 0, mice5, 128, 64);
-  myOLED.update();
-  delay(300);
-  myOLED.clrScr();
-  myOLED.drawBitmap(0, 0, mice4, 128, 64);
-  myOLED.update();
-  delay(300);
-  myOLED.clrScr();
-  myOLED.drawBitmap(0, 0, mice3, 128, 64);
-  myOLED.update();
-  delay(300);
-  myOLED.clrScr();
-  myOLED.drawBitmap(0, 0, mice, 128, 64);
-  myOLED.update();
-  delay(300);
-  for (int i=0; i<2; i++)
-  {
-    myOLED.clrScr();
-    myOLED.drawBitmap(0, 0, mice2, 128, 64);
-    myOLED.update();
-    myOLED.invert(true);
-    delay(300);
-    myOLED.clrScr();
-    myOLED.drawBitmap(0, 0, mice1, 128, 64);
-    myOLED.update();
-    myOLED.invert(false);
-    delay(300);
-  }
-
+int translateY(double y) {
+  return (int)(y + yOffset); // Translate to yOffset
 }
