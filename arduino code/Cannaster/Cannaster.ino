@@ -1,24 +1,29 @@
-#include <OLED_I2C.h>
-#include <Wire.h>
 #include <Encoder.h>
 #include <Stepper.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BME280.h>
+#include "DFRobot_AHT20.h"
+#include <OLED_I2C.h>
+#include "DFRobot_BMP280.h"
+#include "Wire.h"
+
+typedef DFRobot_BMP280_IIC    BMP;    // ******** use abbreviations instead of full names ********
+
+BMP   bmp(&Wire, 0x77);
+
+#define SEA_LEVEL_PRESSURE    1015.0f   // sea level pressure
+
+
+#define MINUTES_TO_MILLISECONDS(minutes) ((minutes) * 60UL * 1000UL)
+#define HOURS_TO_MILLISECONDS(hours)     ((hours) * 60UL * 60UL * 1000UL) 
+#define encoderSW 4
+#define relayPin 5
+
+DFRobot_AHT20 aht20;   
+OLED  myOLED(SDA, SCL);
 
 const int stepsPerRevolution = 4060;
 Stepper myStepper(stepsPerRevolution, 12, 11, 10, 9);
 
-#define RESET_PIN  -1  
-#define EOC_PIN    -1  
-Adafruit_BME280 bme;
 Encoder myEnc(3, 2);
-OLED  myOLED(SDA, SCL); 
-
-extern uint8_t bitmap[];
-extern uint8_t SmallFont[];
-extern uint8_t MediumNumbers[];
-extern uint8_t BigNumbers[];
-extern uint8_t mice5[];extern uint8_t mice4[];extern uint8_t mice3[];extern uint8_t mice2[];extern uint8_t mice1[];extern uint8_t mice[];
 
 unsigned long lastDebounceTime = 0;
 int debounceTime = 250;
@@ -27,8 +32,8 @@ int currentPage = 1;
 //program
 const int humidityThreshold = 40; // Example threshold in percent
 const int pressureThreshold = 7;
-unsigned long prgDelay = 900000; //flips the program on and off 
-unsigned long pmpDelay = 300000; //pump turns on once for every program cycle
+unsigned long prgDelay = HOURS_TO_MILLISECONDS(3); //flips the program on and off 
+unsigned long pmpDelay = MINUTES_TO_MILLISECONDS(10); //pump turns on once for every program cycle
 bool enablePrg = true;
 bool disablePmp = false;
 bool programGo = false;
@@ -41,12 +46,25 @@ unsigned long minutes;
 
 unsigned long lastDataReload = 0;
 int dataLoad = 500;
-float temperature = 0.0f;
-float humidity = 0.0f;
-float pressure_hPa = 0.0f;
+float tempReading;
+float humidityReading;
+float pressureReading;
 
-const int encoderSW = 4;  
-const int relayPin= 5;
+extern uint8_t SmallFont[];
+extern uint8_t mice5[];
+extern uint8_t mice4[];
+extern uint8_t mice3[];
+extern uint8_t mice2[];
+extern uint8_t mice1[];
+extern uint8_t mice[];
+double vectors[12][2] = {
+  {0, 0}, {7, 0}, {7, 7}, {0, 7}, // Box corners
+  {0, 0}, {7, 7},                 // Diagonal 1
+  {7, 0}, {0, 7},                 // Diagonal 2
+};
+int xOffset = 113;
+int yOffset = 2;
+
 
 void setup() {
   pinMode(encoderSW, INPUT_PULLUP);  // Set SW pin as input with internal pull-up resistor
@@ -54,23 +72,17 @@ void setup() {
   digitalWrite(relayPin, LOW);
 
   Serial.begin(9600);
-  while (!Serial) {
-      delay(100);
-  }
-
   Wire.begin();
-  
-  bme.begin(0x76); 
 
-  if(!myOLED.begin(SSD1306_128X64))
-    while(1);   // In case the library failed to allocate enough RAM for the display buffer...
-
-  startScreen();
-
+  myOLED.begin(SSD1306_128X64);
   myOLED.setFont(SmallFont);
 
+  bmp.reset();
   myStepper.setSpeed(7);
-  
+  bmp.begin();
+  aht20.begin();
+
+  startScreen();
 }
 
 long oldPosition  = -999;
@@ -111,7 +123,7 @@ void loop() {
   // Button handling
   if (SWState == LOW) {
     delay(debounceTime);
-    handleButton();
+    handleButton(currentPage);
   }    
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -120,24 +132,22 @@ void loop() {
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 if (programGo) {
-  Serial.println(disablePmp);
-//////////////time switch, its only true once every prgDelay
+  //////////////prgDelay is the time between pump pulls
   if (millis() - prgOffTime > prgDelay) {
     enablePrg = !enablePrg;
-    disablePmp = false; //variable reset
+    disablePmp = false; 
     prgStartTime = millis(); 
     prgOffTime = millis();
-    pmpOffTime = millis(); //pump starts once each prg cycle
+    pmpOffTime = millis(); 
     isVacuumOn = false;
   }
-////////////////time telling /////////////////////////////////////
-
+  ///////////////
   unsigned long timeElapsed = millis() - prgStartTime;
   seconds = timeElapsed / 1000;
   minutes = seconds / 60;
   seconds = seconds % 60;
   
-///////////////////////////////////////////////////////////////////
+  /////////////enablePrg turns on the pump once every prgDelay. pmpDelay is the time the pump is on. 
   if (enablePrg) {
     if (millis() - pmpOffTime > pmpDelay) {
       disablePmp = true; // turns off the pump, is reset above in prgOffTime loop
@@ -145,14 +155,13 @@ if (programGo) {
 
     if (!disablePmp) {
       
-      if (!isVacuumOn && humidity > humidityThreshold && pressure_hPa > pressureThreshold +1) {
-        // Turn on the vacuum
+      if (!isVacuumOn && humidityReading > humidityThreshold && pressureReading > pressureThreshold +1) {
         digitalWrite(relayPin, HIGH); 
         isVacuumOn = true;   
       }
   
       if (isVacuumOn) {
-        if (pressure_hPa < pressureThreshold) {
+        if (pressureReading < pressureThreshold) {
           // Turn off the vacuum
           digitalWrite(relayPin, LOW); 
           isVacuumOn = false;
@@ -165,10 +174,11 @@ if (programGo) {
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 if ((millis() - lastDataReload) > dataLoad) {
- dataReload();
- if (currentPage == 1) {
- displaySensorReadings(temperature, humidity, pressure_hPa);
- }
- lastDataReload = millis();
+  dataReload();
+  if (currentPage == 1) {
+    displaySensorReadings(tempReading, humidityReading, pressureReading);
+  }
+  lastDataReload = millis();
 }
+
 }
