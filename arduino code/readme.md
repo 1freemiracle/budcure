@@ -1,1 +1,2 @@
-## These machines use a menu system via an OLED display and a rotary encoder. In the menu system you can select the program, change variables, and calibrate the load cell and humidity sensors. 
+## The BudCure Box and Cannaster programs use a rotary encoder and OLED display to interact with users. 
+# The BudCure Box uses a WEMOS D1 MINI and the Cannaster uses the Arduino Nano.
