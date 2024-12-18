@@ -1,4 +1,4 @@
-# The BudCure is composed of two machines, the BudCure Box and the Cannaster. 
+# The Cannaster reinvisions the post-harvest workflow. The BudCureBox and Cannaster allows for automated control over the moisture content of the harvest, promising distinct differences in auroma and flavor. 
 
 <div align="center">
 <img src="https://live.staticflickr.com/65535/53855147137_7863ec670d_c.jpg" alt="BudCure machines">
