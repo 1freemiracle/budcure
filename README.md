@@ -2,6 +2,7 @@
 
 <div align="center">
 <img src="https://live.staticflickr.com/65535/54048580326_35cb3e6327_w.jpg" alt="BudCure machines">
+<img src="https://live.staticflickr.com/65535/54018779967_b76986c169_w.jpg" alt="BudCure machines">
 </div>
 
 ## In the BudCureBox, you can estimate the moisture content by the weight loss due to evaporation. The weight is tracked from harvest and a target weight is calculated. This weight is used to know when to take the nugs off the branch and put into the Cannaster, when about 65% of the initial weight is lost.
