@@ -1,113 +1,208 @@
-void handleEncoder(int currentPage) {
-  // Display the current page
-  switch (currentPage) {
+void handleEncoder(int position) {
+  unsigned long hours = prgDelay / 3600000; 
+  unsigned long minutes = (prgDelay % 3600000) / 60000;
+  switch (position) {
     case 1:
-      displaySensorReadings(tempReading, humidityReading, pressureReading);
+      displaySensorReadings();
       break;
     case 2:
-      myOLED.clrScr();
-      myOLED.print("open/close lid", LEFT, 15);
-      myOLED.print("press enter", CENTER, 32);
-      myOLED.update();
+      display->clear();
+      display->setFont(Bold);
+      display->drawString(3, 0, "operate motors");
+      display->display();
       break;
     case 3:
-      myOLED.clrScr();
-      myOLED.print("turn on vaccum", CENTER, 15);
-      myOLED.update();
+      display->clear();
+      display->setFont(Bold);
+      display->drawString(3, 0, "change max rH");
+      display->drawString(45, 27, String(maxHumidity));
+      display->display();
+      break;
+    case 4:
+      display->clear();
+      display->setFont(Bold);
+      display->drawString(3, 0, "change delay");
+      display->drawString(37, 27, String(hours));
+      display->drawString(55, 27, ": ");
+      display->drawString(65, 27, String(minutes));
+      display->display();
+      break;
+    case 5:
+      display->clear();
+      display->setFont(Bold);
+      display->drawString(3, 0, "CLEAR MEMORY");
+      display->drawString(37, 14, String(eepromAddress / sizeof(int)));
+      display->drawString(55, 27, "OF");
+      display->drawString(65, 45, String(3950 / sizeof(int)));
+      display->display();
       break;
   }
 }
-
-void handleButton(int currentPage) {
-  switch (currentPage) {
+void handleButton(int position) {
+  switch (position) {
     case 1:
-      displaySensorReadings(tempReading, humidityReading, pressureReading);
       programGo = !programGo;
+      EEPROM.put(GO_ADDRESS, programGo);
+      EEPROM.commit();
       prgOffTime = millis();
-      pmpOffTime = millis();
       prgStartTime = millis();
-      enablePrg = true;
       disablePmp = false;
       isVacuumOn = false;
+      displaySensorReadings();
       break;
     case 2:
       operateLid();
       break;
     case 3:
-      digitalWrite(relayPin, !digitalRead(relayPin));
+      humidityChange();
+      break;
+    case 4:
+      intervalChange();
+      break;
+    case 5:
+      eepromWipe(20);
+      break;
+    case 6:
+      wifiScreen();
       break;
   }
 }
 
-void dataReload() {
-  //float   alti = bme.calAltitude(SEA_LEVEL_PRESSURE, press);
-  pressureReading = (bmp.getPressure()/100)/68.9476;
-  if (aht20.startMeasurementReady(/* crcEn = */true)) {
-    tempReading = aht20.getTemperature_F();
-    humidityReading = aht20.getHumidity_RH();
-  }
-  Serial.print("Temperature = ");
-  Serial.print(tempReading);
-  Serial.println(" °C");
+void wifiScreen() {
+    server.begin();
+    //wl_status_t status = WiFi.status();
+    interruptFlag = false;
+    unsigned long lastScanTime = 0;  // Timer for Wi-Fi scan
+    const unsigned long scanInterval = 1000;  // 10-second interval between scans
 
-  Serial.print("Pressure = ");
+    while (!interruptFlag) {
+        wl_status_t status = WiFi.status();
+        display->clear();
+        display->setFont(ArialMT_Plain_10);
+        display->drawString(128, 0, "WIFI SCREEN");
 
-  Serial.print(pressureReading);
-  Serial.println(" hPa");
+        // Show the current Wi-Fi status and IP address
+        if (status == WL_CONNECTED) {
+            display->drawString(120, 15, "Status: Connected");
+            display->drawString(120, 30, "IP: " + WiFi.localIP().toString());
+            server.handleClient();  // Handle web server requests when connected
+        } else {
+            display->drawString(120, 15, "Status: Not Connected");
 
-  Serial.print("Humidity = ");
-  Serial.print(humidityReading);
-  Serial.println(" %");
+            // Only scan for networks every 10 seconds
+            if (millis() - lastScanTime > scanInterval) {
+                display->drawString(100, 14, "Scanning...");
 
-  Serial.println();
+                int n = WiFi.scanNetworks();  // Scan for available networks
+                bool found = false;
 
-}
+                for (int i = 0; i < n; ++i) {
+                    display->drawString(128, 25 + i * 10, String(WiFi.SSID(i))); // Display SSID
+                    if (WiFi.SSID(i) == targetSSID) {
+                        display->drawString(128, 40, "Connecting to " + String(targetSSID));
+                        WiFi.begin(targetSSID, password);  // Attempt to connect
 
+                        // Wait for the connection to establish
+                        unsigned long connectStartTime = millis();
+                        while (WiFi.status() != WL_CONNECTED && millis() - connectStartTime < 10000) {
+                            display->clear();
+                            display->setFont(ArialMT_Plain_10);
+                            display->drawString(128, 0, "Connecting to " + String(targetSSID));
+                            
+                            // Display a message indicating the waiting status
+                            display->drawString(128, 20, "Please wait...");
+                            
+                            // Update the display
+                            display->display();
+                            delay(500);  // Wait for a while before checking again
+                        }
 
-void operateLid() {
-  delay(500);
-  while (digitalRead(encoderSW) == HIGH) {
-    myOLED.clrScr();
-    myOLED.print("press enter to exit", LEFT, 16);
-    myOLED.update();
+                        found = true;
+                        break;
+                    }
+                }
 
-  int SWState = digitalRead(encoderSW);
-  long newPosition = myEnc.read() / 2; // Divide by 4 for more stable readings
-  if (newPosition != oldPosition) {
-    if (newPosition > oldPosition) {
-      myStepper.step(stepsPerRevolution);
-    } else {
-      myStepper.step(-stepsPerRevolution);
+                if (!found) {
+                    display->drawString(128, 50, "SSID not found");
+                }
+
+                lastScanTime = millis();  // Update the scan timer
+            }
+        }
+        
+        // Update the display once at the end
+        display->display();
+        yield();  // Allow background tasks to run to prevent watchdog resets
+        delay(500);
     }
-    oldPosition = newPosition;
+    server.stop();
+    delay(500);  // Debounce delay
+    interruptFlag = false; 
+    r.resetPosition(1);
+    position = 1;
+}
+
+void displaySensorReadings() {
+  float fahrenheit = (temperature * 9.0 / 5.0) + 32.0;
+  display->clear();
+  display->setFont(ArialMT_Plain_10);
+  display->drawString(10, 2, "RH");
+  display->drawString(50, 2, "temp");
+  display->drawString(90, 2, "press");
+  display->drawString(10, 16, String(humidity));
+  display->drawString(50, 16, String(fahrenheit));
+  display->drawString(90, 16, String(psi));
+  delay(50);
+  if (!programGo) {
+    display->drawString(30, 30, "press to start");
+    display->drawString(10, 35, "          ");
+    display->display();
+  } 
+  if (programGo) {
+    display->drawString(10, 35, "enabled");
+    display->drawString(77, 35, String(minutes));
+    display->drawString(90, 35, ":");
+    display->drawString(98, 35, String(seconds));
+    display->display();
   }
+  
+}
+void measurements() {
+
+  temperature = bme.readTemperature();
+  humidity = bme.readHumidity();
+  pressure = bme.readPressure() / 100.0F; 
+  psi = pressure * 0.0145038;
+}
+
+/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////
+void rotate(ESPRotary& r) {
+  position = r.getPosition();
+  if (position != lastPosition) {
+    moved = true;
+    lastPosition = position;
   }
-  digitalWrite(12, LOW);
-  digitalWrite(11, LOW);
-  digitalWrite(10, LOW);
-  digitalWrite(9, LOW);
-  delay(500);
-  handleEncoder(2);
+  if (position == 7) {
+    r.resetPosition(1);
+    position = 1;
+  } else if (position == 0) {
+      r.resetPosition(6);
+      position = 6;
+    }
 }
-
-
-
-void drawBoxWithX() {
-  // Draw the box
-  myOLED.drawLine(translateX(vectors[0][0]), translateY(vectors[0][1]), translateX(vectors[1][0]), translateY(vectors[1][1]));
-  myOLED.drawLine(translateX(vectors[1][0]), translateY(vectors[1][1]), translateX(vectors[2][0]), translateY(vectors[2][1]));
-  myOLED.drawLine(translateX(vectors[2][0]), translateY(vectors[2][1]), translateX(vectors[3][0]), translateY(vectors[3][1]));
-  myOLED.drawLine(translateX(vectors[3][0]), translateY(vectors[3][1]), translateX(vectors[0][0]), translateY(vectors[0][1]));
-
-  // Draw the X
-  myOLED.drawLine(translateX(vectors[4][0]), translateY(vectors[4][1]), translateX(vectors[5][0]), translateY(vectors[5][1]));
-  myOLED.drawLine(translateX(vectors[6][0]), translateY(vectors[6][1]), translateX(vectors[7][0]), translateY(vectors[7][1]));
+/////////////////////////////////////////////////////////////////
+void showDirection(ESPRotary& r) {
+  //Serial.println(r.directionToString(r.getDirection()));
 }
-
-int translateX(double x) {
-  return (int)(x + xOffset); // Translate to xOffset
+/////////////////////////////////////////////////////////////////
+void handleLoop() {
+  r.loop();
 }
+/////////////////////////////////////////////////////////////////
 
-int translateY(double y) {
-  return (int)(y + yOffset); // Translate to yOffset
-}
+/*
+5 pin encoder wiring: the three pins go clk - gnd - dt
+and the two other pins go: hook up to microcontroller - gnd
+good luck
+*/
