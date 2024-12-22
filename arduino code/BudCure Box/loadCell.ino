@@ -1,32 +1,20 @@
-void tareTared() {
-  /*
-  1.remove tray in tareScreen()
-  2.tare to zero and record the tare value into TARE_ADDRESS
-  3.put the tray with the weight back on the load cell
-  4.save the weight to the array and memory (because the memory populates the weight array which i use to display the values)
-  */
-  //2.
-  LoadCell.tare(); 
-  long _offset = LoadCell.getTareOffset();
-  EEPROM.put(TARE_ADDRESS, _offset);
-  EEPROM.commit(); 
 
-  //3.
-  float weight = LoadCell.getData(); 
+void tareTared() { 
+  
   while (!interruptFlag) {
     LoadCell.refreshDataSet();
     weight = LoadCell.getData(); 
+    weight = weight - trayWeight; 
     display->clear();
     display->setFont(ArialMT_Plain_10);
     display->drawString(128, 0, "WEIGHT INPUT SCREEN");
-    display->drawString(105, 15, "replace tray...");
-    display->drawString(115, 28, "then press enter");
+    display->drawString(105, 15, "^^__^^");
+    display->drawString(115, 28, "press enter");
     display->setFont(ArialMT_Plain_16);
     display->drawString(85, 42, String(weight));
     display->display();
   }
-  //4.
-  weight = weight - trayWeight; 
+  temps[eventCount] = temperature;
   weights[eventCount] = weight; //save to the array
   saveWeights(); //save to the memory pile
   eventCount++;
@@ -81,7 +69,7 @@ void calibrate() {
   interruptFlag = false;
 
   //4.
-  float known_weight = 453;
+  float known_weight = 1365;
   LoadCell.refreshDataSet(); 
   float newCalibrationValue = LoadCell.getNewCalibration(known_weight);
   EEPROM.put(CALIBRATE_ADDRESS, newCalibrationValue);
@@ -120,21 +108,28 @@ void calibrate() {
 }
 
 void tareFairy() {
-  long _offset = LoadCell.getTareOffset();
-  LoadCell.tare();
+  LoadCell.tareNoDelay();
+  LoadCell.refreshDataSet();
+  
   if (LoadCell.getTareStatus()) {
+    long _offset = LoadCell.getTareOffset();
+    EEPROM.put(TARE_ADDRESS, _offset);
+    EEPROM.commit();
     display->clear();
     display->setFont(ArialMT_Plain_10);
     display->drawString(38, 128, "Tare Complete!");
     display->display();
   }
-  EEPROM.put(TARE_ADDRESS, _offset);
-  EEPROM.commit();
+  delay(750);
+  r.resetPosition(1);
+  position = 1;
 }
 
 // Save weights to EEPROM
 void saveWeights() {
   EEPROM.put(WEIGHT_ADDRESS + eventCount* sizeof(float), weights[eventCount]); // Save each weight
+  EEPROM.commit();
+  EEPROM.put(TEMP_ADDRESS + eventCount* sizeof(float), temps[eventCount]); // Save each weight
   EEPROM.commit();
 }
 
