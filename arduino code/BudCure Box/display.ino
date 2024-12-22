@@ -1,4 +1,80 @@
-///////////////////////////////////////////////////////////////////////////////////      HOMESCREEN
+///////////////////////////////////////////////////////////////////////////////////      WIFISCREEN
+void wifiScreen() {
+    server.begin();
+    //wl_status_t status = WiFi.status();
+    interruptFlag = false;
+    unsigned long lastScanTime = 0;  // Timer for Wi-Fi scan
+    const unsigned long scanInterval = 1000;  // 10-second interval between scans
+
+    while (!interruptFlag) {
+        wl_status_t status = WiFi.status();
+        display->clear();
+        display->setFont(ArialMT_Plain_10);
+        display->drawString(128, 0, "WIFI SCREEN");
+
+        // Show the current Wi-Fi status and IP address
+        if (status == WL_CONNECTED) {
+            display->drawString(120, 15, "Status: Connected");
+            display->drawString(120, 30, "IP: " + WiFi.localIP().toString());
+            server.handleClient();  // Handle web server requests when connected
+        } else {
+            display->drawString(120, 15, "Status: Not Connected");
+
+            // Only scan for networks every 10 seconds
+            if (millis() - lastScanTime > scanInterval) {
+                display->drawString(100, 14, "Scanning...");
+
+                int n = WiFi.scanNetworks();  // Scan for available networks
+                bool found = false;
+
+                for (int i = 0; i < n; ++i) {
+                    display->drawString(128, 25 + i * 10, String(WiFi.SSID(i))); // Display SSID
+                    if (WiFi.SSID(i) == targetSSID) {
+                        display->drawString(128, 40, "Connecting to " + String(targetSSID));
+                        WiFi.begin(targetSSID, password);  // Attempt to connect
+
+                        // Wait for the connection to establish
+                        unsigned long connectStartTime = millis();
+                        while (WiFi.status() != WL_CONNECTED && millis() - connectStartTime < 10000) {
+                            display->clear();
+                            display->setFont(ArialMT_Plain_10);
+                            display->drawString(128, 0, "Connecting to " + String(targetSSID));
+                            
+                            // Display a message indicating the waiting status
+                            display->drawString(128, 20, "Please wait...");
+                            
+                            // Update the display
+                            display->display();
+                            delay(500);  // Wait for a while before checking again
+                        }
+
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    display->drawString(128, 50, "SSID not found");
+                }
+
+                lastScanTime = millis();  // Update the scan timer
+            }
+        }
+        
+        // Update the display once at the end
+        display->display();
+        yield();  // Allow background tasks to run to prevent watchdog resets
+        delay(500);
+    }
+    server.stop();
+    delay(500);  // Debounce delay
+    interruptFlag = false; 
+    r.resetPosition(1);
+    position = 1;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////    HOMESCREEN
 void homeScreen() {
   display->clear();
   display->setFont(ArialMT_Plain_10);
@@ -16,11 +92,10 @@ void homeScreen() {
   display->setFont(ArialMT_Plain_10);
   display->drawString(123, 17, "WEIGHT");
   display->setFont(ArialMT_Plain_16);
-  display->drawString(120, 30, String(weightLoss));
+  display->drawString(120, 30, String(weight));
   display->setFont(ArialMT_Plain_10);
 
-  display->setTextAlignment(TEXT_ALIGN_LEFT);
-  display->drawString(1, 54, currentProgram);
+  displayDevicesOn();
   display->setTextAlignment(TEXT_ALIGN_RIGHT);
   
   display->drawString(128, 54, String(seconds));
@@ -32,33 +107,11 @@ void homeScreen() {
 }
 ////////////////////////////////////////////////////////////////////////////////////    NEW WEIGHT SCREEN
 void newWeightScreen() {
-  interruptFlag = false;
-  while (!interruptFlag) {
-    LoadCell.refreshDataSet();
-    float weight = LoadCell.getData(); 
-    display->clear();
-    display->setFont(ArialMT_Plain_10);
-    display->drawString(128, 0, "WEIGHT INPUT SCREEN");
-    display->drawString(74, 15, String(weight));
-    display->display();
-
-    if (weight > 300) {
-      display->setFont(ArialMT_Plain_10);
-      display->drawString(85, 30, "Remove tray");
-      display->display();
-    } else {
-      display->setFont(ArialMT_Plain_10);
-      display->drawString(128, 42, "Press enter NOW...");
-      display->display();
-    }
-  }
   delay(500);
   interruptFlag = false; 
-  prgStart = !prgStart; 
   tareTared();
   
 }
-
 /////////////////////////////////////////////////////////////////////////////////   TEC SCREEN
 void tecScreen() {
   interruptFlag = false;
@@ -68,23 +121,38 @@ void tecScreen() {
     display->drawString(85, 30, "TEC is " + String(analogRead(TEC_PIN)));
     display->display();
   }
-  delay(500);
+  tecGram = !tecGram;
+  EEPROM.put(TECPROGRAM_ADDRESS, tecGram);
+  EEPROM.commit();
   interruptFlag = false; 
-  tecProgram();
+  delay(500);
+  r.resetPosition(1);
+  position = 1;
 }
 /////////////////////////////////////////////////////////////////////////////////   FAN SCREEN
 void fanScreen() {
   interruptFlag = false;
-  fanGram = !fanGram;
   while(!interruptFlag) {
-    display->clear();
+    display->clear(); // Clear the display
     display->setFont(ArialMT_Plain_16);
-    display->drawString(85, 30, "fan is" + String(fanGram));
-    display->display();
+    
+    // Read the fan pin value and ensure correct type for display
+    int fanValue = analogRead(FAN_PIN);
+    String displayString = "FAN is " + String(fanValue);
+    
+    // Use drawString with proper arguments
+    display->drawString(85, 30, displayString);
+    display->display(); // Update the display
+
+    delay(100); // Add a small delay for stability
   }
-  delay(500);
+  fanGram = !fanGram;
+  EEPROM.put(FANPROGRAM_ADDRESS, fanGram);
+  EEPROM.commit();
   interruptFlag = false; 
-  fanProgram();
+  delay(500);
+  r.resetPosition(1);
+  position = 1;
 }
 /////////////////////////////////////////////////////////////////////////////////   RESET SCREEN
 void resetScreen() {
@@ -126,7 +194,7 @@ void tareScreen() {
     float weight = LoadCell.getData();
     display->clear();
     display->setFont(ArialMT_Plain_10);
-    display->drawString(128, 0, "CALIBRATE SCREEN");
+    display->drawString(128, 0, "TARE SCREEN");
     display->drawString(100, 14, "remove the tray");
     display->drawString(128, 25,"press enter to continue...");
     display->setFont(ArialMT_Plain_16);
@@ -189,29 +257,35 @@ void weightScreen() {
     display->clear();
     display->setFont(ArialMT_Plain_10);
     display->drawString(128, 0, "WEIGHT SCREEN");
-    displayArray(weights, 8);
+    displayArrays(weights, temps, 8, 8);
   }
   delay(500);
   interruptFlag = false; 
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-void displayArray(float* array, int size) {
+void displayArrays(float* array1, float* array2, int size1, int size2) {
     
-    int y = 14; // Starting Y position for the first line
-      for (int i = 0; i < size; i++) {
-        if (i < 5) {
-          String line = "offset " + String(i + 1) + " :  " + String(array[i], 1); 
-          display->drawString(62, y, line); 
-          y += 12;
-          if (i == 5) {
-            y = 14;
-          }
-        } else {
-          String line = "offset " + String(i + 1) + " :  " + String(array[i], 1); 
-          display->drawString(128, y, line);
-          y += 12; 
+    int yLeft = 14;  // Starting Y position for the first column (left side)
+    int yRight = 14; // Starting Y position for the second column (right side)
+    
+    // Display the first array (left side)
+    for (int i = 0; i < size1; i++) {
+        if (i < 5) { // Limit the number of rows to fit the display
+            String line = "Offset " + String(i + 1) + ": " + String(array1[i], 1); 
+            display->drawString(62, yLeft, line);  // Display on the left side (x = 62)
+            yLeft += 12; // Increment Y position for next line
         }
-      }
+    }
 
-    display->display(); 
+    // Display the second array (right side)
+    for (int i = 0; i < size2; i++) {
+        if (i < 5) { // Limit the number of rows to fit the display
+            String line = "Offset " + String(i + 1) + ": " + String(array2[i], 1); 
+            display->drawString(128, yRight, line);  // Display on the right side (x = 128)
+            yRight += 12; // Increment Y position for next line
+        }
+    }
+
+    display->display(); // Refresh the display to show the updates
 }
+
