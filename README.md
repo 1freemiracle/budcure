@@ -16,7 +16,7 @@
 ## The Cannaster takes mostly dry nugs and gets them to the perfect moisture content for canning. The vacuum brings moisture out from inside the nugs, drying them quickly and evenly to a precise moisture content. 
 
 <div align="center">
-<img src="https://live.staticflickr.com/65535/53858876694_0441f6b17d.jpg" alt="inside the Cannaster">
+<img src="https://live.staticflickr.com/65535/54215950237_eb1a49f423.jpg" alt="inside the Cannaster">
 </div>
 > The Cannaster dials in the moisture content of the buds in preparation for canning.
 
